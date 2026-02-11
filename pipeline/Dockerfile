@@ -3,17 +3,20 @@ FROM python:3.13.11-slim
 # Copy uv binary from official uv image (multi-stage build pattern)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 
-WORKDIR /app
+WORKDIR /code
 
 # Add virtual environment to PATH so we can use installed packages
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/code/.venv/bin:$PATH"
+
+# Install build dependencies for psycopg2
+RUN apt-get update && apt-get install -y build-essential postgresql-client libpq-dev && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files first (better layer caching)
-COPY "pyproject.toml" "uv.lock" ".python-version" ./
+COPY pyproject.toml uv.lock .python-version ./
 # Install dependencies from lock file (ensures reproducible builds)
 RUN uv sync --locked
 
-COPY pipeline.py pipeline.py
+COPY pipeline/ingest_data.py .
 
 # Set entry point
-ENTRYPOINT ["uv", "run", "python", "pipeline.py"]
+ENTRYPOINT ["uv", "run", "python", "ingest_data.py"]
